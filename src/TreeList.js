@@ -83,10 +83,10 @@ var TreeList = function (_Component) {
             var _this2 = this;
 
             // required props
-            var _props = this.props;
-            var children = _props.children;
-            var listItems = _props.listItems;
-            var contentKey = _props.contentKey;
+            var _props = this.props,
+                children = _props.children,
+                listItems = _props.listItems,
+                contentKey = _props.contentKey;
             // optional props
 
             var style = this.props.style ? this.props.style : {};
@@ -94,10 +94,10 @@ var TreeList = function (_Component) {
             var expandedListItems = this.props.expandedListItems ? this.props.expandedListItems : this.state.expandedListItems;
             var activeListItem = this.props.activeListItem ? this.props.activeListItem : this.state.activeListItem;
             var listHeight = this.props.listHeight ? this.props.listHeight : '32px';
-            var _props2 = this.props;
-            var haveSearchbar = _props2.haveSearchbar;
-            var onSearch = _props2.onSearch;
-            var icons = _props2.icons;
+            var _props2 = this.props,
+                haveSearchbar = _props2.haveSearchbar,
+                onSearch = _props2.onSearch,
+                icons = _props2.icons;
 
 
             var listItemsModified = listItems.map(function (listItem, i, inputArray) {

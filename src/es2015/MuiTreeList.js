@@ -7,6 +7,66 @@ import CloseIcon from 'material-ui/svg-icons/navigation/expand-less'
 import FolderIcon from 'material-ui/svg-icons/file/folder'
 import FileIcon from 'material-ui/svg-icons/editor/insert-drive-file'
 
+import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
+
+const SortableList = SortableContainer(({items, searchMode, expandedListItems, useFolderIcons, handleTouchTap}) => {
+
+    if (searchMode) return _renderItems(items, expandedListItems, useFolderIcons, handleTouchTap)
+
+    return (
+        <ReactCSSTransitionGroup transitionName="tree-list" transitionEnterTimeout={300} transitionLeaveTimeout={150}>
+            {_renderSortableItems(items, expandedListItems, useFolderIcons, handleTouchTap)}
+        </ReactCSSTransitionGroup>
+    )
+})
+
+function _renderSortableItems(items, expandedListItems, useFolderIcons, handleTouchTap) {
+    const SortableItem = SortableElement(({value}) => {
+        const i = items.indexOf(value)
+        console.log('!!!! trying to render listitem', value, i)
+        return (
+            <ListItem
+                key={'treeListItem-' + i}
+                primaryText={value._primaryText}
+                style={Object.assign({}, value._styles.root, value._shouldRender ? { }: { display: 'none' })}
+                leftIcon={getLeftIcon(value, useFolderIcons)}
+                rightIcon={(!value.children) ? null : (expandedListItems.indexOf(i) === -1) ? <OpenIcon /> : <CloseIcon />}
+                onTouchTap={()=> {
+                            if (value.disabled) return
+                            handleTouchTap(value, i)
+                        }} />
+        )
+
+    });
+
+    return items.map((listItem, index) => <SortableItem value={listItem} key={`item-${index}`} index={index}/>)
+}
+
+function _renderItems(items, expandedListItems, useFolderIcons, handleTouchTap) {
+    return items.map((listItem) => {
+
+        const i = items.indexOf(listItem)
+        console.log('!!!! trying to render listitem', listItem, i)
+        if (listItem._shouldRender) {
+            return (
+                <ListItem
+                    key={'treeListItem-' + i}
+                    primaryText={listItem._primaryText}
+                    style={Object.assign({}, listItem._styles.root)}
+                    leftIcon={getLeftIcon(listItem, useFolderIcons)}
+                    rightIcon={(!listItem.children) ? null : (expandedListItems.indexOf(i) === -1) ? <OpenIcon /> : <CloseIcon />}
+                    onTouchTap={()=> {
+                                if (listItem.disabled) return
+                                handleTouchTap(listItem, i)
+                            }} />
+            )
+        } else {
+            return null
+        }
+    })
+}
+
+
 class TreeList extends Component {
     constructor(props) {
         super(props)
@@ -14,11 +74,20 @@ class TreeList extends Component {
         this.state = {
             expandedListItems: [],
             activeListItem: null,
-            searchTerm: ''
+            searchTerm: '',
+            items: props.listItems
         }
+
         this.searchMode = false
         this.handleTouchTap = this.handleTouchTap.bind(this)
     }
+
+    componentWillReceiveProps(nextProps) {
+        this.setState({
+            items: nextProps.listItems
+        })
+    }
+
     handleTouchTap(listItem, index) {
         if (this.searchMode) {
             if (!listItem.children) {
@@ -51,9 +120,22 @@ class TreeList extends Component {
         if (!this.searchMode && this.props.handleTouchTap) this.props.handleTouchTap(listItem, index)
     }
 
+    _onSortEnd({ oldIndex, newIndex }) {
+        console.warn('onSortEnd', oldIndex, newIndex)
+        this.setState({
+            items: arrayMove(this.state.items, oldIndex, newIndex)
+        });
+    }
+
+
+
+
+
     render() {
         // required props
-        const {children, listItems, contentKey} = this.props
+        const {children, contentKey, useFolderIcons} = this.props
+        const { items: listItems } = this.state
+
         // optional props
         const style = (this.props.style) ? this.props.style : {}
         const startingDepth = (this.props.startingDepth) ? this.props.startingDepth : 1
@@ -99,31 +181,11 @@ class TreeList extends Component {
             this.searchMode = false
             listItemsModified = listItemsModified
                 .map((listItem, i) => {
-                    listItem._shouldRender = (listItem.depth >= startingDepth && parentsAreExpanded(listItem))
+                    listItem._shouldRender = (listItem.depth >= startingDepth && parentsAreExpanded(listItem, startingDepth, expandedListItems, listItems))
                     listItem._primaryText = listItem[contentKey]
                     return listItem
                 })
         }
-        // JSX: array of listItems
-        const listItemsJSX = listItemsModified
-            .map((listItem, i) => {
-                if (listItem._shouldRender) {
-                    return (
-                        <ListItem
-                            key={'treeListItem-' + i}
-                            primaryText={listItem._primaryText}
-                            style={Object.assign({}, listItem._styles.root)}
-                            leftIcon={getLeftIcon(listItem, this.props.useFolderIcons)}
-                            rightIcon={(!listItem.children) ? null : (expandedListItems.indexOf(i) === -1) ? <OpenIcon /> : <CloseIcon />}
-                            onTouchTap={()=> {
-                                if (listItem.disabled) return
-                                this.handleTouchTap(listItem, i)
-                            }} />                   
-                    )                   
-                } else {
-                    return null
-                }
-            })
 
         // styles for entire wrapper
         const styles = {
@@ -133,13 +195,16 @@ class TreeList extends Component {
                 paddingTop: (children) ? 0 : 8,
             }
         }
+
+
+        console.log('attempting render')
         return (
             <div style={Object.assign({}, styles.root, style)}>
                 {children}
                 {haveSearchbar &&
-                    <form 
-                        style={{padding: '0px 16px'}}
-                        onSubmit={(e) => {
+                <form
+                    style={{padding: '0px 16px'}}
+                    onSubmit={(e) => {
                             e.preventDefault()
                             if (handleSearch) {
                                 handleSearch(document.getElementById('searchfield').value)
@@ -148,87 +213,102 @@ class TreeList extends Component {
                             }
                             document.getElementById('searchfield').value = ''
                         }}>
-                        <TextField
-                            hintText="Search"
-                            fullWidth={true}
-                            id={'searchfield'} />
-                    </form>}
-                <ReactCSSTransitionGroup transitionName="tree-list" transitionEnterTimeout={300} transitionLeaveTimeout={150}>
-                    {listItemsJSX}
-                </ReactCSSTransitionGroup>
+                    <TextField
+                        hintText="Search"
+                        fullWidth={true}
+                        id={'searchfield'} />
+                </form>}
+                <SortableList
+                    items={listItemsModified}
+                    onSortEnd={this._onSortEnd.bind(this) }
+                    searchMode={this.searchMode}
+                    expandedListItems={expandedListItems}
+                    useFolderIcons={useFolderIcons}
+                    handleTouchTap={this.handleTouchTap.bind(this)}
+                />
             </div>
+
         )
 
 
-        function getLeftIcon(listItem, useFolderIcons) {
-            if (useFolderIcons) {
-                if (listItem.children) {
-                    return <FolderIcon />
-                } else {
-                    return <FileIcon />
+    }
+}
+
+/*
+
+ */
+
+
+
+
+function getLeftIcon(listItem, useFolderIcons) {
+    if (useFolderIcons) {
+        if (listItem.children) {
+            return <FolderIcon />
+        } else {
+            return <FileIcon />
+        }
+    } else {
+        return listItem.icon
+    }
+}
+
+function parentsAreExpanded(listitem, startingDepth, expandedListItems, listItems) {
+    if (listitem.depth > startingDepth) {
+        if (expandedListItems.indexOf(listitem.parentIndex) === -1) {
+            return false
+        } else {
+            const parent = listItems.filter((_listItem, index) => {
+                return index === listitem.parentIndex
+            })[0]
+            return parentsAreExpanded(parent, startingDepth, expandedListItems, listItems)
+        }
+    } else {
+        return true
+    }
+}
+
+function tagListItemsWithSearchTerm(searchTerm, listItem) {
+    const f = (listItem) => {
+        const searchTerms = searchTerm.split(' ')
+        let match = false
+        let matchIndex, matchTermLength
+
+        if (searchTerms[0] !== '') {
+            searchTerms.forEach((searchTerm) => {
+                const content = (listItem[contentKey]) ? listItem[contentKey] : ''
+                matchIndex = content.toLowerCase().indexOf(searchTerm.toLowerCase())
+                if (matchIndex !== -1) {
+                    match = true
+                    matchTermLength = searchTerm.length
                 }
-            } else {
-                return listItem.icon
-            }
+            })
         }
 
-        function parentsAreExpanded(listitem) {
-            if (listitem.depth > startingDepth) {
-                if (expandedListItems.indexOf(listitem.parentIndex) === -1) {
-                    return false
-                } else {
-                    const parent = listItems.filter((_listItem, index) => {
-                        return index === listitem.parentIndex
-                    })[0]
-                    return parentsAreExpanded(parent)
-                }
-            } else {
+        if (match) {
+            return Object.assign({}, listItem, {searchMatched: true, highlight: [matchIndex, matchTermLength]})
+        } else {
+            return listItem
+        }
+    }
+
+    if (listItem) {
+        return f(listItem)
+    } else {
+        return f
+    }
+}
+
+function childIsTaggedWithSearch(listItem, listItems) {
+    if (listItem.children) {
+        for (let i = 0; i < listItem.children.length; i++) {
+            if (listItems[listItem.children[i]].searchMatched) {
                 return true
-            }
-        }
-
-		function tagListItemsWithSearchTerm(searchTerm, listItem) {
-            const f = (listItem) => {
-                const searchTerms = searchTerm.split(' ')
-                let match = false
-                let matchIndex, matchTermLength
-
-                if (searchTerms[0] !== '') {
-                    searchTerms.forEach((searchTerm) => {
-                        const content = (listItem[contentKey]) ? listItem[contentKey] : ''
-                        matchIndex = content.toLowerCase().indexOf(searchTerm.toLowerCase())
-                        if (matchIndex !== -1) {
-                            match = true
-                            matchTermLength = searchTerm.length
-                        }
-                    })
-                }
-
-                if (match) {
-                    return Object.assign({}, listItem, {searchMatched: true, highlight: [matchIndex, matchTermLength]})
-                } else {
-                    return listItem
-                }
-            }
-
-            if (listItem) {
-                return f(listItem)
-            } else {
-                return f
-            }
-		}
-
-        function childIsTaggedWithSearch(listItem, listItems) {
-            if (listItem.children) {
-                for (let i = 0; i < listItem.children.length; i++) {
-                    if (listItems[listItem.children[i]].searchMatched) {
-                        return true
-                    }
-                }
             }
         }
     }
 }
+
 
 TreeList.contextTypes = {
     muiTheme: PropTypes.object

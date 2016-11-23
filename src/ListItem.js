@@ -30,12 +30,12 @@ var ListItem = function (_Component) {
     _createClass(ListItem, [{
         key: 'render',
         value: function render() {
-            var _props = this.props;
-            var primaryText = _props.primaryText;
-            var style = _props.style;
-            var _props2 = this.props;
-            var onTouchTap = _props2.onTouchTap;
-            var leftIcon = _props2.leftIcon;
+            var _props = this.props,
+                primaryText = _props.primaryText,
+                style = _props.style;
+            var _props2 = this.props,
+                onTouchTap = _props2.onTouchTap,
+                leftIcon = _props2.leftIcon;
 
 
             var styles = {

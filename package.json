@@ -32,5 +32,8 @@
     "prepublish": "npm run babel-build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "react-sortable-hoc": "^0.2.0"
   }
 }
