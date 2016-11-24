@@ -6,8 +6,14 @@ import OpenIcon from 'material-ui/svg-icons/navigation/expand-more'
 import CloseIcon from 'material-ui/svg-icons/navigation/expand-less'
 import FolderIcon from 'material-ui/svg-icons/file/folder'
 import FileIcon from 'material-ui/svg-icons/editor/insert-drive-file'
+import ReorderIcon from 'material-ui/svg-icons/action/reorder'
 
-import {SortableContainer, SortableElement, arrayMove} from 'react-sortable-hoc';
+import _ from 'lodash'
+
+import {SortableContainer, SortableElement, SortableHandle, arrayMove} from 'react-sortable-hoc';
+
+// quite hacked: react-sortable-hoc screws with the positioning
+const DragHandle = SortableHandle(() => <ReorderIcon style={{ position: 'absolute', top: '11px', left: '10px', fill: 'gray'}}/>);
 
 const SortableList = SortableContainer(({items, searchMode, expandedListItems, useFolderIcons, handleTouchTap}) => {
 
@@ -20,6 +26,11 @@ const SortableList = SortableContainer(({items, searchMode, expandedListItems, u
     )
 })
 
+/*
+ leftIcon={<DragHandle />}
+
+ */
+
 function _renderSortableItems(items, expandedListItems, useFolderIcons, handleTouchTap) {
     const SortableItem = SortableElement(({value}) => {
         const i = items.indexOf(value)
@@ -28,7 +39,8 @@ function _renderSortableItems(items, expandedListItems, useFolderIcons, handleTo
                 key={'treeListItem-' + i}
                 primaryText={value._primaryText}
                 style={Object.assign({}, value._styles.root, value._shouldRender ? { }: { display: 'none' })}
-                leftIcon={getLeftIcon(value, useFolderIcons)}
+                innerDivStyle={{ display: 'inline-block', width: 'calc(100% - 45px', padding: '16px 0px 16px 45px' }}
+                leftIcon={<DragHandle/>}
                 rightIcon={(!value.children) ? null : (expandedListItems.indexOf(i) === -1) ? <OpenIcon /> : <CloseIcon />}
                 onTouchTap={()=> {
                             if (value.disabled) return
@@ -38,7 +50,7 @@ function _renderSortableItems(items, expandedListItems, useFolderIcons, handleTo
 
     });
 
-    return items.map((listItem, index) => <SortableItem value={listItem} key={`item-${index}`} index={index}/>)
+    return items.map((listItem, index) => <SortableItem value={listItem} key={`item-${index}`} index={index} collection={listItem.parentIndex}/>)
 }
 
 function _renderItems(items, expandedListItems, useFolderIcons, handleTouchTap) {
@@ -147,10 +159,6 @@ class TreeList extends Component {
 
     }
 
-
-
-
-
     render() {
         // required props
         const {children, contentKey, useFolderIcons} = this.props
@@ -245,6 +253,7 @@ class TreeList extends Component {
                     expandedListItems={expandedListItems}
                     useFolderIcons={useFolderIcons}
                     handleTouchTap={this.handleTouchTap.bind(this)}
+                    useDragHandle={this.props.useDragHandle}
                 />
             </div>
 
@@ -274,6 +283,24 @@ function getLeftIcon(listItem, useFolderIcons) {
 }
 
 function parentsAreExpanded(listitem, startingDepth, expandedListItems, listItems) {
+    console.warn('parentsAreExpanded', listItems, listitem, expandedListItems)
+    /*
+    // get the parent (but don't trust parentIndex anymore since we might have moved
+    const parent = listItems.filter((_listItem, index) => {
+        return _listItem.children ? _listItem.children.includes(listitem.index) : false
+    })[0]
+
+
+
+
+    if (!parent) return expandedListItems.indexOf(listItems.indexOf(parent)) >= 0
+
+    return parentsAreExpanded(listitem, startingDepth, expandedListItems, listItems)
+
+*/
+
+    if (listitem === listItems[listitem.parentIndex]) return false
+
     if (listitem.depth > startingDepth) {
         if (expandedListItems.indexOf(listitem.parentIndex) === -1) {
             return false
@@ -349,7 +376,12 @@ TreeList.propTypes = {
     searchTerm: PropTypes.string,
 
     // sortable props
-    onSortEnd: PropTypes.func
+    onSortEnd: PropTypes.func,
+    useDragHandle: PropTypes.bool
+}
+
+TreeList.defaultProps = {
+    onSortEnd: () => { console.warn('No onSortEnd provided to TreeList!')}
 }
 
 export default TreeList
