@@ -23,7 +23,6 @@ const SortableList = SortableContainer(({items, searchMode, expandedListItems, u
 function _renderSortableItems(items, expandedListItems, useFolderIcons, handleTouchTap) {
     const SortableItem = SortableElement(({value}) => {
         const i = items.indexOf(value)
-        console.log('!!!! trying to render listitem', value, i)
         return (
             <ListItem
                 key={'treeListItem-' + i}
@@ -46,7 +45,6 @@ function _renderItems(items, expandedListItems, useFolderIcons, handleTouchTap) 
     return items.map((listItem) => {
 
         const i = items.indexOf(listItem)
-        console.log('!!!! trying to render listitem', listItem, i)
         if (listItem._shouldRender) {
             return (
                 <ListItem
@@ -89,6 +87,7 @@ class TreeList extends Component {
     }
 
     handleTouchTap(listItem, index) {
+        console.warn('handletouchtap', listItem, index, this.props.handleTouchTap)
         if (this.searchMode) {
             if (!listItem.children) {
                 this.setState({
@@ -120,11 +119,32 @@ class TreeList extends Component {
         if (!this.searchMode && this.props.handleTouchTap) this.props.handleTouchTap(listItem, index)
     }
 
-    _onSortEnd({ oldIndex, newIndex }) {
-        console.warn('onSortEnd', oldIndex, newIndex)
-        this.setState({
-            items: arrayMove(this.state.items, oldIndex, newIndex)
-        });
+    _onSortEnd(changes, ...args) {
+
+        // react-sortable-hoc seems to hijack the touch events, so that the handle never gets called.
+        // if we are really just tapping in place, let's manually call the handleTouchTap function
+        console.warn('onsortend called', changes, args)
+        const { oldIndex, newIndex } = changes
+        if (oldIndex !== newIndex) { // actual drag, dont fire touchtap
+            console.warn('onSortEnd', oldIndex, newIndex, args)
+            this.setState({
+                items: arrayMove(this.state.items, oldIndex, newIndex)
+            });
+            this.props.onSortEnd(changes, ...args)
+        } else { // tap in place, fire touchtap
+
+            const item = this.state.items[newIndex]
+            this.handleTouchTap(item, newIndex)
+
+
+        }
+    }
+
+    _reorderItemArray(array, from, to) {
+        // the problem here is that we are moving the items around but might also be changing them in the hierarchy.
+        // thus we need to get an algo that updates the items accordingly.
+
+
     }
 
 
@@ -326,7 +346,10 @@ TreeList.propTypes = {
     listHeight: PropTypes.number,
     useFolderIcons: PropTypes.bool,
     haveSearchbar: PropTypes.bool,
-    searchTerm: PropTypes.string
+    searchTerm: PropTypes.string,
+
+    // sortable props
+    onSortEnd: PropTypes.func
 }
 
 export default TreeList
